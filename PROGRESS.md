@@ -1,223 +1,217 @@
-# Aged Care Workforce Intelligence Dashboard — Progress
+# Aged Care Workforce Intelligence Dashboard - Progress
 
-**Last updated:** April 2026  
+**Last updated:** 28 April 2026  
 **Branch:** `main`  
-**Status:** All code merged to main. Supabase schema deployed. Env files created. npm dependencies installed. Windows localhost connection issue unresolved — next session should debug this before running pipeline.
+**Status:** Local dashboard running. Supabase seeded with ABS, WPI, AIHW, JSA, and RSS data. GitHub secrets configured. Pipeline runs end-to-end locally. SEEK job ads remain unresolved because the old SEEK endpoint now returns 404.
 
 ---
 
-## What has been built
+## Current Local Setup
 
-### Database (Supabase / Postgres)
-File: `supabase/migrations/001_initial_schema.sql`
+Primary working locations on this machine:
 
-7 tables, fully defined with constraints, indexes, RLS (public read-only), and updated_at triggers:
+| Path | Purpose |
+|------|---------|
+| `C:\dev\aged-care-workforce-dashboard` | Running local app copy |
+| `C:\dev\aged-care-workforce-dashboard-git` | Clean Git checkout used for commits and pushes |
 
-| Table | Purpose |
-|-------|--------|
-| `employment_data` | ABS Labour Force — employed persons, unemployment rate, full/part-time split |
-| `wage_data` | ABS Wage Price Index — index value and annual % change by industry |
-| `job_ads` | SEEK job ad volumes by role, state, and week |
-| `workforce_characteristics` | AIHW census metrics — turnover, vacancy, age, gender, qualifications |
-| `shortage_status` | JSA Skills Priority List — shortage level per ANZSCO occupation |
-| `news_items` | RSS news ticker items from 6 feeds |
-| `provider_data` | Provider-level headcount/wage data (schema ready, manual entry in v2) |
+Local dashboard:
 
-### Data Pipeline (Python 3.12)
-Directory: `pipeline/`
-
-| Script | Data source | Cadence | Status |
-|--------|-------------|---------|--------|
-| `abs_labour_force.py` | ABS Data API (SDMX-JSON) | Weekly CI | Ready — needs live run |
-| `abs_wpi.py` | ABS Data API (SDMX-JSON) | Weekly CI | Ready — needs live run |
-| `aihw_scraper.py` | AIHW website + hard-coded fallback | Weekly CI | Ready — fallback data seeded |
-| `jsa_scraper.py` | JSA Skills Priority List + fallback | Weekly CI | Ready — fallback data seeded |
-| `seek_scraper.py` | SEEK search endpoint | Weekly CI | Ready — needs live run |
-| `rss_fetcher.py` | 6 RSS feeds (ABS, RBA, Google News, ACQSC, DSS) | Daily CI | Ready — needs live run |
-| `db.py` | Shared Supabase client | — | Complete |
-| `run_all.py` | Master runner | — | Complete |
-
-### CI/CD (GitHub Actions)
-Directory: `.github/workflows/`
-
-| Workflow | Schedule | Runs |
-|----------|----------|------|
-| `daily.yml` | 6am AEST daily | RSS news fetcher |
-| `weekly.yml` | 5am AEST Monday | All fetchers |
-
-Both require `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` as GitHub repository secrets.
-
-### Frontend (React + Recharts + Vite)
-Directory: `frontend/`
-
-| Component | Description |
-|-----------|-------------|
-| `App.jsx` | Main dashboard layout — all sections wired up |
-| `NewsTicker.jsx` | Scrolling RSS headlines at top of page, pauses on hover |
-| `StatCard.jsx` | Headline metric cards — value, unit, trend arrow, badge, skeleton |
-| `CareTypeFilter.jsx` | Sector-wide / Home Care / Residential toggle |
-| `EmploymentTrendChart.jsx` | Area + line chart — employed persons + unemployment rate (24 months) |
-| `WageTrendChart.jsx` | Dual line chart — WPI growth, Health & Social vs all industries |
-| `JobAdChart.jsx` | SEEK ad volume trend + in-demand roles bar chart |
-| `WorkforceMetrics.jsx` | AIHW census metrics grid, filters by care type |
-| `ShortageTable.jsx` | JSA SPL table with colour-coded shortage badges |
-| `ChartCard.jsx` | Titled card wrapper for all chart sections |
-
-Data layer:
-- `src/lib/api.js` — 10 Supabase query functions
-- `src/lib/supabase.js` — client initialised from env vars
-- `src/hooks/useQuery.js` — async data hook with loading/error/cancellation
-
-### Deployment config
-- `vercel.json` — SPA config pointing to `frontend/dist/`
-- `.gitignore`, `README.md`
-
----
-
-## File structure
-
-```
-aged-care-workforce-dashboard/
-├── .github/
-│   └── workflows/
-│       ├── daily.yml          # RSS fetcher — 6am AEST daily
-│       └── weekly.yml         # All fetchers — 5am AEST Monday
-├── frontend/
-│   ├── index.html
-│   ├── package.json           # React 18, Recharts, Supabase JS, date-fns, Vite
-│   ├── vite.config.js
-│   ├── .env.example           # Copy to .env.local, add Supabase keys
-│   └── src/
-│       ├── App.jsx
-│       ├── main.jsx
-│       ├── index.css          # Dark theme, CSS variables, ticker animation
-│       ├── components/
-│       │   ├── CareTypeFilter.jsx
-│       │   ├── ChartCard.jsx
-│       │   ├── EmploymentTrendChart.jsx
-│       │   ├── JobAdChart.jsx
-│       │   ├── NewsTicker.jsx
-│       │   ├── ShortageTable.jsx
-│       │   ├── StatCard.jsx
-│       │   ├── WageTrendChart.jsx
-│       │   └── WorkforceMetrics.jsx
-│       ├── hooks/
-│       │   └── useQuery.js
-│       └── lib/
-│           ├── api.js         # All Supabase query functions
-│           └── supabase.js    # Supabase client
-├── pipeline/
-│   ├── .env.example           # Copy to .env, add Supabase service key
-│   ├── requirements.txt
-│   ├── db.py                  # Shared client + upsert()
-│   ├── run_all.py             # Master runner
-│   ├── abs_labour_force.py
-│   ├── abs_wpi.py
-│   ├── aihw_scraper.py
-│   ├── jsa_scraper.py
-│   ├── seek_scraper.py
-│   └── rss_fetcher.py
-├── supabase/
-│   └── migrations/
-│       └── 001_initial_schema.sql
-├── .gitignore
-├── README.md
-├── PROGRESS.md
-└── vercel.json
-```
-
----
-
-## What works right now
-
-- All project files merged to `main` and pushed to remote
-- Full dashboard UI renders (dark theme, all sections, news ticker, care type filter)
-- All charts handle empty data gracefully — show placeholder text until pipeline runs
-- All stat cards show skeleton loaders while fetching
-- Care type filter re-fetches trend charts and workforce metrics on toggle
-- AIHW workforce metrics show immediately (fallback data pre-loaded in `aihw_scraper.py`)
-- JSA shortage status table shows immediately (fallback data pre-loaded in `jsa_scraper.py`)
-- GitHub Actions workflows are configured and will trigger on schedule once secrets are added
-- Vercel deployment config is ready
-- Supabase schema deployed (`001_initial_schema.sql` run against project `rmebcckenesgzhtshrcb`)
-- `frontend/.env.local` created with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
-- `pipeline/.env` created with `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`
-- `frontend/node_modules` installed (`npm install` complete, 326 packages)
-
----
-
-## What still needs to be done
-
-### Immediate (to go live)
-
-1. ~~Create Supabase project~~ ✓ Done — project `rmebcckenesgzhtshrcb`
-2. ~~Run schema~~ ✓ Done — `001_initial_schema.sql` deployed
-3. ~~Add env vars to frontend~~ ✓ Done — `frontend/.env.local` created
-4. **Fix Windows localhost connection** — `npm run dev` starts successfully on the Linux host but Windows browser refuses connection; likely a WSL2 port-forwarding or firewall issue. Try: run `netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=$(wsl hostname -I)` in an admin PowerShell, or access via the WSL2 IP directly (shown in Vite output as `Network:` URL).
-5. **Deploy to Vercel** — import repo, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
-6. **Add GitHub secrets** — `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` for pipeline CI
-7. **Trigger first pipeline run** — manually run `weekly.yml` from GitHub Actions tab to seed live data
-
-### ABS API dimension mapping (may need adjustment)
-
-The ABS Data API dimension keys in `abs_labour_force.py` and `abs_wpi.py` are best-effort based on ABS API documentation. The exact dimension codes (measure, industry, region) should be verified against the [ABS API Explorer](https://api.data.abs.gov.au/) on first run. Adjust the key strings in the scripts if the API returns empty datasets.
-
-### SEEK scraping (may be blocked)
-
-SEEK doesn't have a public API. The scraper uses the internal search endpoint — this may return 403 or change without notice. If blocked, alternatives:
-- SEEK Labour Market Insights has some public data at seek.com.au/about/news/labour-market-insights
-- Manual weekly entry via a simple admin form (v2 feature)
-
-### V2 features (not yet built)
-
-- [ ] Provider intelligence section — manual data entry form for headcount, turnover, wage expense by provider
-- [ ] Annual report agent — automated extraction from PDF annual reports
-- [ ] Geographic heatmap — state-level job ad volume chart (data model ready in `job_ads.state`)
-- [ ] Role-level salary benchmarks — SEEK salary data or recruitment agency guides
-- [ ] Mobile optimised layout
-- [ ] LinkedIn / Indeed job ad data
-
----
-
-## Exact next steps for the next session
-
-**Step 1 — Fix Windows localhost access**
-
-Option A — use the Network IP shown in Vite output (e.g. `http://192.0.2.2:3000/`):
-```bash
-cd frontend
-npm run dev -- --host 0.0.0.0
-# Look for the "Network:" line in output and open that IP in Windows browser
-```
-
-Option B — WSL2 port forwarding (run in admin PowerShell on Windows):
 ```powershell
-$wslIp = (wsl hostname -I).Trim()
-netsh interface portproxy add v4tov4 listenport=3000 listenaddress=0.0.0.0 connectport=3000 connectaddress=$wslIp
-# Then open http://localhost:3000 in browser
+http://127.0.0.1:3000/
 ```
 
-**Step 2 — Seed data**
-```bash
-cd pipeline
-pip install -r requirements.txt
-python run_all.py
-# Check Supabase Table Editor to confirm rows appeared
+The Vite server is running from `C:\dev\aged-care-workforce-dashboard\frontend`.
+
+Important Windows note: `npm run dev` and `npm run build` may hit a bare `Access is denied` from command shims inside this Codex shell. Running Vite directly through Node works:
+
+```powershell
+$env:Path = 'C:\Program Files\nodejs;' + $env:Path
+& 'C:\Program Files\nodejs\node.exe' node_modules\vite\bin\vite.js --host 127.0.0.1
+& 'C:\Program Files\nodejs\node.exe' node_modules\vite\bin\vite.js build
 ```
 
-**Step 3 — Deploy to Vercel**
-```
-1. vercel.com → Import Git Repository → select aged-care-workforce-dashboard
-2. Set root directory to: frontend
-3. Environment Variables → add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
-4. Deploy
+---
+
+## Supabase
+
+| Item | Status |
+|------|--------|
+| Project ID | `rmebcckenesgzhtshrcb` |
+| Project URL | `https://rmebcckenesgzhtshrcb.supabase.co` |
+| Schema | Deployed |
+| Local env files | Created and gitignored |
+| GitHub Actions secrets | `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` set |
+
+Current row counts after the successful local pipeline run:
+
+| Table | Rows | Status |
+|-------|------|--------|
+| `employment_data` | 63 | Seeded from ABS Labour Account + Labour Force |
+| `wage_data` | 48 | Seeded from ABS WPI |
+| `job_ads` | 0 | SEEK endpoint returns 404 |
+| `workforce_characteristics` | 22 | Seeded from AIHW fallback data |
+| `shortage_status` | 9 | Seeded from JSA fallback data |
+| `news_items` | 17 | Seeded from Health Department + Google News RSS |
+
+---
+
+## What Works
+
+- Local React/Vite dashboard loads at `http://127.0.0.1:3000/`.
+- Production Vite build succeeds when run directly through Node.
+- Supabase client works with the new Supabase publishable/secret key format.
+- Pipeline dependencies install with Python 3.12.
+- Full local pipeline completes successfully with:
+
+```powershell
+cd C:\dev\aged-care-workforce-dashboard\pipeline
+& 'C:\Users\danie\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -u run_all.py
 ```
 
-**Step 4 — Wire up CI**
-```
-GitHub repo → Settings → Secrets → Actions → New repository secret
-Add: SUPABASE_URL and SUPABASE_SERVICE_KEY
-Then: Actions tab → weekly.yml → Run workflow (to trigger immediately)
+- GitHub CLI is authenticated as `gotaidea`.
+- GitHub repo access confirmed as `ADMIN`.
+- Commits pushed to `main`.
+
+Recent pushed commits:
+
+| Commit | Summary |
+|--------|---------|
+| `e339d64` | Fix pipeline compatibility with Supabase keys |
+| `ce5dd1b` | Refresh ABS and RSS data sources |
+
+---
+
+## Data Pipeline Status
+
+| Script | Data source | Status |
+|--------|-------------|--------|
+| `abs_labour_force.py` | ABS `LABOUR_ACCT_Q` + `LF` | Working |
+| `abs_wpi.py` | ABS `WPI` v1.2.0 | Working |
+| `aihw_scraper.py` | AIHW page + fallback data | Fallback seeds successfully; page URL currently 404 |
+| `jsa_scraper.py` | JSA + fallback data | Fallback seeds successfully |
+| `rss_fetcher.py` | Health Department RSS + Google News RSS | Working |
+| `seek_scraper.py` | Old SEEK internal endpoint | Not working; endpoint returns 404 |
+
+The full pipeline currently reports SEEK warnings but still exits successfully.
+
+---
+
+## Frontend Status
+
+Working sections with live/seeded data:
+
+- Headline unemployment rate
+- Sector employment
+- WPI growth
+- Care worker shortage
+- Employment trend chart
+- Wage trend chart
+- Workforce profile
+- Shortage table
+- News ticker
+
+Still empty:
+
+- SEEK job ad volume
+- Most in-demand roles
+
+Reason: the old SEEK endpoint `https://www.seek.com.au/api/chalice-search/v4/search` now returns 404.
+
+---
+
+## GitHub Actions
+
+Workflows:
+
+| Workflow | Schedule | Purpose |
+|----------|----------|---------|
+| `.github/workflows/daily.yml` | Daily | RSS news fetcher |
+| `.github/workflows/weekly.yml` | Weekly | Full data pipeline |
+
+Secrets are set in GitHub:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_KEY`
+
+Next session should manually trigger both workflows from GitHub Actions and confirm they pass in the cloud environment.
+
+---
+
+## Next Session Plan
+
+1. **Verify GitHub Actions**
+   - Manually run `weekly.yml`.
+   - Manually run `daily.yml`.
+   - Confirm both pass and rows remain current in Supabase.
+
+2. **Deploy Frontend to Vercel**
+   - Import `gotaidea/aged-care-workforce-dashboard`.
+   - Set root directory to `frontend`.
+   - Add env vars:
+     - `VITE_SUPABASE_URL`
+     - `VITE_SUPABASE_ANON_KEY`
+   - Deploy and verify the live site.
+
+3. **Replace SEEK Job Ads Source**
+   - SEEK old internal endpoint is gone/blocked.
+   - Options:
+     - Find a current public endpoint.
+     - Use Google/Serp/API search counts if acceptable.
+     - Use provider careers pages.
+     - Build a manual weekly import/admin flow.
+     - Use LinkedIn/Indeed or agency job boards as alternate sources.
+
+4. **Provider Intelligence / Annual Report Agent V2**
+   - Build provider target list.
+   - Add richer provider/source schema if needed:
+     - `providers`
+     - `provider_reports`
+     - `provider_metrics`
+     - `provider_sources`
+   - Pilot extraction over 5-10 providers before scaling:
+     - Bolton Clarke
+     - Bupa Aged Care
+     - Estia Health
+     - Regis
+     - Opal HealthCare
+     - Uniting / UnitingCare
+     - HammondCare
+     - BaptistCare
+     - Anglicare
+     - Australian Unity
+   - Extract: headcount, FTE, turnover, vacancy rate, wage expense, revenue, agency labour spend, care minutes, workforce risk notes, source URL, page number, confidence score.
+
+---
+
+## Useful Commands
+
+Start local dashboard:
+
+```powershell
+cd C:\dev\aged-care-workforce-dashboard\frontend
+$env:Path = 'C:\Program Files\nodejs;' + $env:Path
+& 'C:\Program Files\nodejs\node.exe' node_modules\vite\bin\vite.js --host 127.0.0.1
 ```
 
-After Step 4, the dashboard will have live data and refresh automatically.
+Run full pipeline locally:
+
+```powershell
+cd C:\dev\aged-care-workforce-dashboard\pipeline
+& 'C:\Users\danie\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -u run_all.py
+```
+
+Build frontend:
+
+```powershell
+cd C:\dev\aged-care-workforce-dashboard\frontend
+$env:Path = 'C:\Program Files\nodejs;' + $env:Path
+& 'C:\Program Files\nodejs\node.exe' node_modules\vite\bin\vite.js build
+```
+
+Check Git status:
+
+```powershell
+cd C:\dev\aged-care-workforce-dashboard-git
+git status --short --branch --ignored
+```
