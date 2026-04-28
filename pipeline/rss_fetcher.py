@@ -13,6 +13,7 @@ Run: python rss_fetcher.py
 """
 from datetime import datetime, timezone, timedelta
 import feedparser
+import requests
 from db import upsert
 
 FEEDS = [
@@ -79,7 +80,9 @@ def run():
         keywords = feed_config.get("filter_keywords")
         print(f"[rss] Fetching: {name}...")
         try:
-            parsed = feedparser.parse(url)
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            parsed = feedparser.parse(resp.content)
             count = 0
             for entry in parsed.entries:
                 if not passes_filter(entry, keywords):
