@@ -2,11 +2,9 @@
 RSS feed fetcher for the news ticker.
 
 Fetches aged care / workforce headlines from:
-  - ABS media releases
+  - Health Department news
   - RBA statements
   - Google News RSS (aged care workforce)
-  - ACQSC (Aged Care Quality and Safety Commission)
-  - DSS Aged Care news
   - Google News (care worker shortage)
 
 Run: python rss_fetcher.py
@@ -18,9 +16,9 @@ from db import upsert
 
 FEEDS = [
     {
-        "name": "ABS Media Releases",
-        "url": "https://www.abs.gov.au/rss/media-releases.xml",
-        "filter_keywords": ["labour", "workforce", "wage", "employment", "health"],
+        "name": "Health Department News",
+        "url": "https://health.gov.au/news/rss.xml",
+        "filter_keywords": ["aged care", "workforce", "worker", "wage", "health"],
     },
     {
         "name": "RBA Statements",
@@ -33,23 +31,13 @@ FEEDS = [
         "filter_keywords": None,
     },
     {
-        "name": "ACQSC News",
-        "url": "https://www.agedcarequality.gov.au/news/rss",
-        "filter_keywords": None,
-    },
-    {
-        "name": "DSS Aged Care News",
-        "url": "https://www.dss.gov.au/rss/aged-care",
-        "filter_keywords": None,
-    },
-    {
         "name": "Google News - Care Worker Shortage",
         "url": "https://news.google.com/rss/search?q=care+worker+shortage+australia&hl=en-AU&gl=AU&ceid=AU:en",
         "filter_keywords": None,
     },
 ]
 
-CUTOFF_DAYS = 30
+CUTOFF_DAYS = 120
 
 
 def parse_date(entry) -> datetime | None:
@@ -104,9 +92,10 @@ def run():
         except Exception as e:
             print(f"[rss] WARNING: failed to fetch {name}: {e}")
 
-    if all_rows:
-        upsert("news_items", all_rows, "url")
-        print(f"[rss] Upserted {len(all_rows)} news items.")
+    unique_rows = list({row["url"]: row for row in all_rows}.values())
+    if unique_rows:
+        upsert("news_items", unique_rows, "url")
+        print(f"[rss] Upserted {len(unique_rows)} news items.")
     print("[rss] Done.")
 
 

@@ -1,12 +1,13 @@
 """
-Fetch ABS Labour Force data for Health Care & Social Assistance.
+Fetch ABS employment and unemployment data.
 
 ABS Data API docs: https://api.data.abs.gov.au/
-Dataset: LABOUR_FORCE_DETAILED  (series 6291.0.55.001)
+Datasets:
+  - LABOUR_ACCT_Q for Health Care & Social Assistance employment
+  - LF for national unemployment rate
 We pull:
-  - Employed total, Health Care & Social Assistance (industry division)
-  - Unemployment rate, Health Care & Social Assistance
-  - Full-time / part-time split
+  - Labour Account employed persons, Health Care & Social Assistance
+  - National unemployment rate
 
 Run: python abs_labour_force.py
 """
@@ -14,8 +15,9 @@ from datetime import date
 import requests
 from db import upsert
 
-ABS_API = "https://api.data.abs.gov.au/data"
-DATAFLOW_LF = "ABS,LABOUR_FORCE/1.0.0"
+ABS_API = "https://data.api.abs.gov.au/rest/data"
+DATAFLOW_LABOUR_ACCOUNT = "ABS,LABOUR_ACCT_Q,1.0.0"
+DATAFLOW_LF = "ABS,LF,1.0.0"
 
 HEADERS = {
     "Accept": "application/vnd.sdmx.data+json;version=1.0",
@@ -32,74 +34,64 @@ def _parse_period(period_str: str) -> date | None:
             year, q = period_str.split("-Q")
             month = (int(q) - 1) * 3 + 1
             return date(int(year), month, 1)
+        if len(period_str) == 7 and period_str[4] == "-":
+            year, m = period_str.split("-")
+            return date(int(year), int(m), 1)
     except Exception:
         pass
     return None
 
 
 def fetch_employment_level() -> list[dict]:
-    """Employed persons -- Health Care & Social Assistance, monthly."""
+    """Employed persons -- Health Care & Social Assistance, quarterly."""
     params = {
-        "startPeriod": "2022-M01",
+        "startPeriod": "2022-Q1",
         "detail": "dataonly",
         "dimensionAtObservation": "AllDimensions",
     }
 
     rows = []
-    for measure, col in [("1", "employed_total"), ("2", "employed_fulltime"), ("3", "employed_parttime")]:
-        key = f"{DATAFLOW_LF}/1.{measure}.Q.3.TT.AUS"
-        url = f"{ABS_API}/{key}"
-        try:
-            resp = requests.get(url, headers=HEADERS, params=params, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception as e:
-            print(f"[abs_lf] WARNING: could not fetch {measure}: {e}")
+    # Dimensions: MEASURE.ASGS_2016.LABOURACCT_IND.TSEST.FREQ
+    # M19 = Labour Account employed persons, Q = Health Care and Social Assistance,
+    # 10 = Original, Q = Quarterly.
+    key = f"{DATAFLOW_LABOUR_ACCOUNT}/M19.AUS.Q.10.Q"
+    url = f"{ABS_API}/{key}"
+    try:
+        resp = requests.get(url, headers=HEADERS, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        print(f"[abs_lf] WARNING: could not fetch Labour Account employment: {e}")
+        return rows
+
+    datasets = data.get("data", {}).get("dataSets", [])
+    structure = data.get("data", {}).get("structure", {})
+    if not datasets:
+        return rows
+
+    obs = datasets[0].get("observations", {})
+    time_dim = None
+    for dim in structure.get("dimensions", {}).get("observation", []):
+        if dim.get("id") == "TIME_PERIOD":
+            time_dim = [v.get("id") for v in dim.get("values", [])]
+            break
+
+    for obs_key, obs_val in obs.items():
+        indices = [int(i) for i in obs_key.split(":")]
+        if not time_dim:
             continue
-
-        datasets = data.get("data", {}).get("dataSets", [])
-        structure = data.get("data", {}).get("structure", {})
-        if not datasets:
+        period = _parse_period(time_dim[indices[-1]])
+        value = obs_val[0]
+        if period is None or value is None:
             continue
+        rows.append({
+            "period": period.isoformat(),
+            "care_type": "sector_wide",
+            "employed_total": int(round(value)),
+            "source": "ABS Labour Account",
+        })
 
-        obs = datasets[0].get("observations", {})
-        time_dim = None
-        for dim in structure.get("dimensions", {}).get("observation", []):
-            if dim.get("id") == "TIME_PERIOD":
-                time_dim = [v.get("id") for v in dim.get("values", [])]
-                break
-
-        for obs_key, obs_val in obs.items():
-            indices = [int(i) for i in obs_key.split(":")]
-            if time_dim:
-                period_str = time_dim[indices[-1]]
-            else:
-                continue
-            period = _parse_period(period_str)
-            if period is None:
-                continue
-            value = obs_val[0]
-            if value is None:
-                continue
-            rows.append({
-                "period": period.isoformat(),
-                "care_type": "sector_wide",
-                "measure": col,
-                "value": int(value),
-            })
-
-    merged: dict[str, dict] = {}
-    for r in rows:
-        key = r["period"]
-        if key not in merged:
-            merged[key] = {
-                "period": r["period"],
-                "care_type": "sector_wide",
-                "source": "ABS Labour Force",
-            }
-        merged[key][r["measure"]] = r["value"]
-
-    return list(merged.values())
+    return rows
 
 
 def fetch_unemployment_rate() -> list[dict]:
@@ -109,7 +101,10 @@ def fetch_unemployment_rate() -> list[dict]:
         "detail": "dataonly",
         "dimensionAtObservation": "AllDimensions",
     }
-    key = f"{DATAFLOW_LF}/11.20.TOT.3.TT.AUS"
+    # Dimensions: MEASURE.SEX.AGE.TSEST.REGION.FREQ
+    # M13 = unemployment rate, 3 = persons, 1599 = total age,
+    # 20 = seasonally adjusted, AUS = Australia, M = monthly.
+    key = f"{DATAFLOW_LF}/M13.3.1599.20.AUS.M"
     url = f"{ABS_API}/{key}"
     rows = []
     try:

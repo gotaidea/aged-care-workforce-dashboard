@@ -97,7 +97,7 @@ export default function App() {
           />
           <StatCard
             title="Sector Employment"
-            value={latestEmp?.employed_total ? (latestEmp.employed_total / 1000).toFixed(0) : null}
+            value={latestEmp?.employed_total ? latestEmp.employed_total.toLocaleString() : null}
             unit="k workers"
             subtitle="Health Care & Social Assistance"
             loading={empLevel.loading}

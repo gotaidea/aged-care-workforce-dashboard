@@ -11,8 +11,8 @@ Run: python abs_wpi.py
 import requests
 from db import upsert
 
-ABS_API = "https://api.data.abs.gov.au/data"
-DATAFLOW_WPI = "ABS,WAGE_PRICE_INDEX/1.0.0"
+ABS_API = "https://data.api.abs.gov.au/rest/data"
+DATAFLOW_WPI = "ABS,WPI,1.2.0"
 
 HEADERS = {
     "Accept": "application/vnd.sdmx.data+json;version=1.0",
@@ -44,7 +44,10 @@ def fetch_wpi_for_industry(abs_industry_code: str, industry_label: str) -> list[
     }
 
     for measure_code, col in [("1", "wpi_index"), ("3", "wpi_annual_change")]:
-        key = f"{DATAFLOW_WPI}/{measure_code}.20.1.{abs_industry_code}.1.AUS"
+        # Dimensions: MEASURE.INDEX.SECTOR.INDUSTRY.TSEST.REGION.FREQ
+        # THRPEB = total hourly rates excluding bonuses, 1 = private sector,
+        # 10 = original, AUS = Australia, Q = quarterly.
+        key = f"{DATAFLOW_WPI}/{measure_code}.THRPEB.1.{abs_industry_code}.10.AUS.Q"
         url = f"{ABS_API}/{key}"
         try:
             resp = requests.get(url, headers=HEADERS, params=params, timeout=30)
