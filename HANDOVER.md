@@ -3,7 +3,7 @@
 **Date:** April 2026  
 **Prepared by:** Claude (claude-sonnet-4-6)  
 **Handed to:** Codex  
-**Repo:** `gotaidea/aged-care-workforce-dashboard` — branch `main`
+**Repo:** `dovida-stuff/aged-care-workforce-dashboard` — branch `main`
 
 ---
 
@@ -165,7 +165,7 @@ python run_all.py
 ### Step 3 — Deploy frontend to Vercel
 ```
 1. vercel.com → Add New Project → Import Git Repository
-2. Select: gotaidea/aged-care-workforce-dashboard
+2. Select: dovida-stuff/aged-care-workforce-dashboard
 3. Set root directory to: frontend
 4. Framework preset: Vite
 5. Environment Variables:

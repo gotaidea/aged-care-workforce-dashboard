@@ -11,7 +11,7 @@
 Primary working locations on this machine:
 
 | Path | Purpose |
-|------|---------|
+|------|-------|
 | `C:\dev\aged-care-workforce-dashboard` | Running local app copy |
 | `C:\dev\aged-care-workforce-dashboard-git` | Clean Git checkout used for commits and pushes |
 
@@ -36,7 +36,7 @@ $env:Path = 'C:\Program Files\nodejs;' + $env:Path
 ## Supabase
 
 | Item | Status |
-|------|--------|
+|------|-----|
 | Project ID | `rmebcckenesgzhtshrcb` |
 | Project URL | `https://rmebcckenesgzhtshrcb.supabase.co` |
 | Schema | Deployed |
@@ -69,14 +69,14 @@ cd C:\dev\aged-care-workforce-dashboard\pipeline
 & 'C:\Users\danie\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -u run_all.py
 ```
 
-- GitHub CLI is authenticated as `gotaidea`.
+- GitHub CLI is authenticated as `dovida-stuff`.
 - GitHub repo access confirmed as `ADMIN`.
 - Commits pushed to `main`.
 
 Recent pushed commits:
 
 | Commit | Summary |
-|--------|---------|
+|--------|-------|
 | `e339d64` | Fix pipeline compatibility with Supabase keys |
 | `ce5dd1b` | Refresh ABS and RSS data sources |
 
@@ -146,7 +146,7 @@ Next session should manually trigger both workflows from GitHub Actions and conf
    - Confirm both pass and rows remain current in Supabase.
 
 2. **Deploy Frontend to Vercel**
-   - Import `gotaidea/aged-care-workforce-dashboard`.
+   - Import `dovida-stuff/aged-care-workforce-dashboard`.
    - Set root directory to `frontend`.
    - Add env vars:
      - `VITE_SUPABASE_URL`
